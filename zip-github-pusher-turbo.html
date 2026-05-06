@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZIP to GitHub Pusher Turbo</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#080c14; --surface:#0d1524; --surface2:#111d30;
+  --border:rgba(56,189,248,0.15); --borderH:rgba(56,189,248,0.4);
+  --accent:#38bdf8; --accent2:#818cf8; --accent3:#34d399;
+  --danger:#f87171; --warn:#fbbf24; --text:#e2e8f0; --muted:#64748b;
+  --mono:'JetBrains Mono',monospace; --sans:'Sora',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;padding:20px 14px}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 40% at 20% 10%,rgba(56,189,248,.06),transparent 60%),radial-gradient(ellipse 60% 50% at 80% 80%,rgba(129,140,248,.06),transparent 60%);pointer-events:none;z-index:0}
+.wrap{max-width:980px;margin:0 auto;position:relative;z-index:1}
+.hdr{text-align:center;margin-bottom:28px}
+.hdr h1{font-size:1.9rem;font-weight:700;color:var(--accent);margin-bottom:4px}
+.hdr h1 span{color:var(--accent2)}
+.hdr p{color:var(--muted);font-size:13px}
+.tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:4px;margin-bottom:20px;flex-wrap:wrap}
+.tab{flex:1;padding:10px 6px;border-radius:10px;background:transparent;border:none;color:var(--muted);font-family:var(--sans);font-weight:600;font-size:12px;cursor:pointer;transition:all .2s;text-align:center;min-width:160px}
+.tab.on{background:var(--surface2);color:var(--accent);border:1px solid var(--border)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px}
+.card:hover{border-color:var(--borderH)}
+.ctitle{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.ctitle .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.upload{border:2px dashed rgba(56,189,248,.25);border-radius:12px;padding:36px 20px;text-align:center;cursor:pointer;transition:all .25s;background:rgba(56,189,248,.02)}
+.upload:hover,.upload.drag{border-color:var(--accent);background:rgba(56,189,248,.07)}
+.upload .ico{font-size:44px;margin-bottom:10px;display:block}
+.upload h3{color:var(--text);font-size:14px;margin-bottom:5px}
+.upload p{color:var(--muted);font-size:12px}
+.sbar{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:10px;padding:9px 14px;margin-top:12px;flex-wrap:wrap}
+.sbar .s{font-size:12px;color:var(--muted)}.sbar .s strong{color:var(--accent);font-family:var(--mono)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:9px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s;white-space:nowrap;touch-action:manipulation}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-p{background:var(--accent);color:#0a1628}.btn-p:not(:disabled):hover{background:#7dd3fc}
+.btn-s{background:var(--accent3);color:#0a1628}.btn-s:not(:disabled):hover{filter:brightness(1.1)}
+.btn-d{background:var(--danger);color:#fff}.btn-d:not(:disabled):hover{filter:brightness(1.1)}
+.btn-g{background:transparent;border:1px solid var(--border);color:var(--muted)}.btn-g:not(:disabled):hover{border-color:var(--accent);color:var(--accent)}
+.btn-w{background:var(--warn);color:#1a1000}.btn-w:not(:disabled):hover{filter:brightness(1.08)}
+.sm{padding:5px 10px;font-size:11px;border-radius:6px}
+.tree-wrap,.rtree{background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:12px;max-height:420px;overflow-y:auto;padding:8px;font-family:var(--mono);font-size:12px;margin-top:10px}
+.frow,.rrow{display:flex;align-items:center;gap:7px;padding:7px 6px;border-radius:8px;min-height:42px}
+.frow:hover{background:rgba(56,189,248,.06)}
+.rrow:hover{background:rgba(248,113,113,.06)}
+.frow.del{opacity:.45}
+.fname{flex:1;color:var(--text);font-size:12px;word-break:break-word}
+.fname.folder{color:var(--accent)}
+.fname.striked{text-decoration:line-through;color:var(--danger)}
+.ftog{cursor:pointer;color:var(--muted);font-size:10px;width:16px;text-align:center;flex-shrink:0;padding:4px}
+.delbtn{display:inline-flex;align-items:center;gap:3px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:none;font-family:var(--sans);touch-action:manipulation;flex-shrink:0}
+.delbtn.file-del{background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3);color:var(--danger)}
+.delbtn.file-rst,.delbtn.folder-rst{background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);color:var(--accent3)}
+.delbtn.folder-del{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25);color:var(--warn)}
+.fchildren{padding-left:14px}
+.banner{background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:10px;padding:10px 14px;margin-top:10px;display:none;align-items:center;gap:10px;flex-wrap:wrap}
+.banner.show{display:flex}
+.banner .bc{color:var(--danger);font-weight:700;font-size:13px;font-family:var(--mono)}
+.inp,.sel{width:100%;background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:9px;padding:11px 13px;color:var(--text);font-family:var(--sans);font-size:13px;outline:none;transition:border-color .2s}
+.inp:focus,.sel:focus{border-color:var(--accent)}
+.inp::placeholder{color:var(--muted)}
+.row{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.grid2,.grid3{grid-template-columns:1fr}}
+.rlist{max-height:240px;overflow-y:auto;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:10px;margin-top:10px}
+.ritem{display:flex;align-items:center;gap:10px;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer}
+.ritem:last-child{border-bottom:none}
+.ritem:hover{background:rgba(56,189,248,.06)}
+.ritem input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;flex-shrink:0}
+.rname{flex:1;font-size:13px;word-break:break-word}
+.rbadge{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600}
+.priv{background:rgba(251,191,36,.12);color:var(--warn);border:1px solid rgba(251,191,36,.2)}
+.pub{background:rgba(52,211,153,.08);color:var(--accent3);border:1px solid rgba(52,211,153,.15)}
+.prog{margin-top:12px;display:none}
+.plabel{font-size:12px;color:var(--muted);margin-bottom:5px}
+.pbg{background:rgba(0,0,0,.4);border-radius:20px;height:6px;overflow:hidden}
+.pfill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:20px;transition:width .2s;width:0%}
+#toasts{position:fixed;bottom:20px;right:16px;display:flex;flex-direction:column;gap:7px;z-index:999}
+.toast{padding:10px 16px;border-radius:10px;font-size:13px;font-weight:500;max-width:310px;border:1px solid transparent;animation:tin .3s ease}
+.toast.ok{background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.3);color:var(--accent3)}
+.toast.err{background:rgba(248,113,113,.14);border-color:rgba(248,113,113,.3);color:var(--danger)}
+.toast.inf{background:rgba(56,189,248,.12);border-color:rgba(56,189,248,.25);color:var(--accent)}
+@keyframes tin{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.25);border-top-color:currentColor;border-radius:50%;animation:sp .6s linear infinite;flex-shrink:0}
+@keyframes sp{to{transform:rotate(360deg)}}
+.tc{display:none}.tc.on{display:block;animation:fu .3s ease}
+@keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.empty{text-align:center;padding:28px;color:var(--muted);font-size:13px}
+.flex{display:flex}.gap2{gap:8px}.gap3{gap:12px}.wrap2{flex-wrap:wrap}.mla{margin-left:auto}.mt2{margin-top:8px}.mt3{margin-top:12px}.wfull{width:100%}
+.note{font-size:12px;color:var(--muted);line-height:1.55}
+.kpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.kpi{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kbox{padding:12px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.02)}
+.kbox .k{font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px}
+.kbox .v{font-size:18px;color:var(--accent);font-weight:700}
+.warnbox{padding:12px;border:1px solid rgba(248,113,113,.22);background:rgba(248,113,113,.06);border-radius:12px;color:#fecaca;font-size:12px;line-height:1.6}
+.okbox{padding:12px;border:1px solid rgba(52,211,153,.22);background:rgba(52,211,153,.06);border-radius:12px;color:#bbf7d0;font-size:12px;line-height:1.6}
+.code{font-family:var(--mono)}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:rgba(56,189,248,.2);border-radius:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <h1>📦 ZIP <span>→</span> GitHub Pusher Turbo</h1>
+    <p>Extract · Manage · Create Repo · Batch Push · Batch Delete</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-tab="extract">📂 1. Extract ZIP</button>
+    <button class="tab" data-tab="manage">🗂️ 2. Manage Files</button>
+    <button class="tab" data-tab="push">🚀 3. Push + Repo Ops</button>
+    <button class="tab" data-tab="cleanup">🧹 4. Cleanup</button>
+  </div>
+
+  <div id="tc-extract" class="tc on">
+    <div class="card">
+      <div class="ctitle"><span class="dot"></span>ZIP File Upload</div>
+      <div class="upload" id="upArea">
+        <span class="ico">🗂️</span>
+        <h3>ZIP drop karo ya click karke select karo</h3>
+        <p>Structure ke saath extract hoga aur turbo batch push ready hoga</p>
+        <input type="file" id="fileInp" accept=".zip" style="display:none">
+      </div>
+      <div id="sbar" class="sbar" style="display:none">
+        <span class="s">📦 <strong id="zipName">-</strong></span>
+        <span class="s">📄 Files: <strong id="fileCount">0</strong></span>
+        <span class="s">⚡ Mode: <strong>Batch Commit</strong></span>
+        <div class="mla"><button id="extBtn" class="btn btn-p">📂 Extract</button></div>
+      </div>
+    </div>
+
+    <div class="card" id="extOk" style="display:none">
+      <div class="ctitle"><span class="dot" style="background:var(--accent3)"></span>Extracted</div>
+      <div class="kpi">
+        <div class="kbox"><div class="k">ZIP</div><div class="v" id="zipKpi">0</div></div>
+        <div class="kbox"><div class="k">Active Files</div><div class="v" id="activeKpi">0</div></div>
+        <div class="kbox"><div class="k">Deleted</div><div class="v" id="deletedKpi">0</div></div>
+        <div class="kbox"><div class="k">Stripped Folders</div><div class="v" id="folderKpi">0</div></div>
+      </div>
+      <div class="flex gap2 wrap2 mt3">
+        <button class="btn btn-s" onclick="goTab('manage')">🗂️ Files Manage karo</button>
+        <button class="btn btn-g" onclick="goTab('push')">🚀 Seedha Push tab kholo</button>
+      </div>
+    </div>
+
+    <div class="card okbox">
+      Turbo push ab har file ke liye alag commit nahi karega. Ye parallel blobs + single tree + single commit flow use karega, isliye purane version se kaafi faster hoga.
+    </div>
+  </div>
+
+  <div id="tc-manage" class="tc">
+    <div class="card">
+      <div class="ctitle"><span class="dot" style="background:var(--warn)"></span>Files Manager</div>
+      <p class="note"><strong style="color:var(--danger)">🗑️ Delete</strong> = file push nahi hogi &nbsp;|&nbsp; <strong style="color:var(--warn)">📁 Remove Folder</strong> = folder ka naam path se hata diya jayega aur files upar shift ho jayengi.</p>
+      <div class="flex gap2 wrap2" style="margin-bottom:10px">
+        <button class="btn btn-g sm" onclick="expandAll()">📂 Expand All</button>
+        <button class="btn btn-g sm" onclick="collapseAll()">📁 Collapse All</button>
+        <button class="btn btn-g sm" id="rstAllBtn" onclick="restoreAll()" style="display:none">↩️ Restore All</button>
+        <span class="mla" style="font-size:12px;color:var(--muted)" id="fmInfo">0 files</span>
+      </div>
+      <div id="treeWrap" class="tree-wrap"><div class="empty">Pehle ZIP extract karo (Tab 1)</div></div>
+      <div class="banner" id="banner">
+        <span>🗑️</span>
+        <span class="bc" id="bannerTxt"></span>
+        <button class="btn btn-g sm mla" onclick="restoreAll()">↩️ Restore All</button>
+      </div>
+    </div>
+    <div class="flex gap2 wrap2">
+      <button class="btn btn-p" onclick="goTab('push')">🚀 Push tab</button>
+      <button class="btn btn-g" onclick="goTab('cleanup')">🧹 Cleanup</button>
+    </div>
+  </div>
+
+  <div id="tc-push" class="tc">
+    <div class="card">
+      <div class="ctitle"><span class="dot"></span>GitHub Token</div>
+      <div class="row">
+        <input type="password" id="ghToken" class="inp" placeholder="GitHub Personal Access Token">
+        <button class="btn btn-p" onclick="loadRepos()">📡 Load Repos</button>
+        <button class="btn btn-g" onclick="syncToken()">🔄 Sync to Cleanup</button>
+      </div>
+      <p class="note">Repo create/private push ke liye <span class="code">repo</span> scope chahiye. Repo delete ke liye classic token me aksar <span class="code">delete_repo</span> bhi chahiye.</p>
+    </div>
+
+    <div class="card">
+      <div class="ctitle"><span class="dot" style="background:var(--accent3)"></span>Repo Create / Delete</div>
+      <div class="grid3">
+        <input type="text" id="newRepoName" class="inp" placeholder="New repo name">
+        <input type="text" id="newRepoDesc" class="inp" placeholder="Description (optional)">
+        <select id="newRepoVis" class="sel">
+          <option value="public">Public</option>
+          <option value="private">Private</option>
+        </select>
+      </div>
+      <div class="row mt3">
+        <label class="note" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="newRepoInit" checked> README ke saath initialize</label>
+        <div class="mla flex gap2 wrap2">
+          <button class="btn btn-s" onclick="createRepo()">➕ Create Repo</button>
+          <button class="btn btn-d" onclick="deleteSelectedRepo()">🗑️ Delete Selected Repo</button>
+        </div>
+      </div>
+      <div class="warnbox mt2">Delete repo permanent action hai. Safety ke liye delete sirf tab chalega jab repo list me exactly 1 repo selected ho.</div>
+    </div>
+
+    <div class="card" id="repoCard" style="display:none">
+      <div class="ctitle"><span class="dot"></span>Repositories</div>
+      <div class="row">
+        <input type="text" id="repoSearch" class="inp" placeholder="🔍 Search repo...">
+        <button class="btn btn-g sm" onclick="selAll()">All</button>
+        <button class="btn btn-g sm" onclick="selNone()">None</button>
+      </div>
+      <div id="repoList" class="rlist"></div>
+      <p class="mt2" style="font-size:12px;color:var(--accent)" id="selCount">0 selected</p>
+    </div>
+
+    <div class="card">
+      <div class="ctitle"><span class="dot"></span>Commit Settings</div>
+      <div class="grid2">
+        <input type="text" id="commitMsg" class="inp" value="Add files from ZIP">
+        <input type="text" id="branchName" class="inp" value="main">
+      </div>
+      <div class="grid2 mt3">
+        <input type="number" id="pushConcurrency" class="inp" value="24" min="4" max="64" placeholder="Upload concurrency">
+        <input type="number" id="deleteConcurrency" class="inp" value="24" min="4" max="64" placeholder="Delete concurrency">
+      </div>
+      <p class="note mt2">Recommended concurrency: 16–32. Bohot high value dene se kuch browsers/network me rate-limit aa sakta hai.</p>
+    </div>
+
+    <div class="card">
+      <div class="ctitle"><span class="dot" style="background:var(--accent3)"></span>Push Summary</div>
+      <div id="pushSum" style="font-size:13px;color:var(--muted)">Files extract karo aur repos select karo.</div>
+      <div class="prog" id="pushProg">
+        <div class="plabel" id="pushLbl">Pushing...</div>
+        <div class="pbg"><div class="pfill" id="pushFill"></div></div>
+      </div>
+      <button id="pushBtn" class="btn btn-s wfull mt3" style="padding:13px;font-size:14px" disabled onclick="doPushTurbo()">⚡ Turbo Push to Selected Repos</button>
+    </div>
+  </div>
+
+  <div id="tc-cleanup" class="tc">
+    <div class="card">
+      <div class="ctitle"><span class="dot" style="background:var(--danger)"></span>Repo Cleanup — Turbo Batch Delete</div>
+      <p class="note">Push tab me token load kar lo, phir yahan sync karke repo select karo. Delete ab single batch commit me hoga.</p>
+      <div class="row">
+        <input type="password" id="clToken" class="inp" placeholder="GitHub Token">
+        <button class="btn btn-g sm" onclick="syncToken()">⬆️ Sync</button>
+        <button class="btn btn-w sm" onclick="loadCleanupRepos()">📡 Load Repos</button>
+      </div>
+    </div>
+
+    <div class="card" id="clRepoCard" style="display:none">
+      <div class="ctitle"><span class="dot" style="background:var(--danger)"></span>Repo Select</div>
+      <div class="row"><input type="text" id="clRepoSearch" class="inp" placeholder="🔍 Search repo..."></div>
+      <div id="clRepoList" class="rlist"></div>
+      <p class="mt2" style="font-size:12px;color:var(--danger)" id="clSelName">Koi repo select nahi</p>
+    </div>
+
+    <div class="card" id="clBranchCard" style="display:none">
+      <div class="ctitle"><span class="dot" style="background:var(--warn)"></span>Branch aur Load</div>
+      <div class="row">
+        <input type="text" id="clBranch" class="inp" placeholder="Branch name" value="main">
+        <button class="btn btn-w" onclick="loadRemote()">📡 Load Files</button>
+      </div>
+    </div>
+
+    <div class="card" id="remoteCard" style="display:none">
+      <div class="ctitle"><span class="dot" style="background:var(--danger)"></span>Repo Contents — Batch Select Delete</div>
+      <div class="flex gap2 wrap2" style="margin-bottom:8px">
+        <button class="btn btn-g sm" onclick="checkAll(true)">☑️ All</button>
+        <button class="btn btn-g sm" onclick="checkAll(false)">⬜ None</button>
+        <span class="mla" style="font-size:12px;color:var(--muted)" id="remInfo">0 selected</span>
+      </div>
+      <div id="remoteTree" class="rtree"></div>
+      <div class="row mt3">
+        <input type="text" id="delMsg" class="inp" value="Delete files via ZIP Pusher Turbo">
+        <button id="delBtn" class="btn btn-d" onclick="doDeleteTurbo()" disabled>🗑️ Batch Delete Selected</button>
+      </div>
+      <div class="prog" id="delProg">
+        <div class="plabel" id="delLbl">Deleting...</div>
+        <div class="pbg"><div class="pfill" id="delFill" style="background:linear-gradient(90deg,var(--danger),#f43f5e)"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toasts"></div>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script>
+var files = [];
+var delFiles = {};
+var delFolders = {};
+var repos = [];
+var selRepos = {};
+var extracted = false;
+var remoteItems = [];
+var remSel = {};
+var clRepos = [];
+var clSelRepo = '';
+var uid_counter = 0;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function toast(msg,type,dur){ var t=document.createElement('div'); t.className='toast '+(type||'inf'); t.textContent=msg; $('toasts').appendChild(t); setTimeout(function(){t.remove();},dur||3500); }
+function setBtnBusy(btn,busy,html){ if(!btn) return; btn.disabled=busy; btn.innerHTML=busy?'<span class="spin"></span> '+html:html; }
+function showProg(id,show){ $(id).style.display=show?'block':'none'; }
+
+Array.from(document.querySelectorAll('.tab')).forEach(function(btn){ btn.addEventListener('click', function(){ goTab(this.dataset.tab); }); });
+function goTab(name){
+  document.querySelectorAll('.tab').forEach(function(b){ b.classList.remove('on'); });
+  document.querySelectorAll('.tc').forEach(function(c){ c.classList.remove('on'); });
+  document.querySelector('[data-tab="'+name+'"]').classList.add('on');
+  $('tc-'+name).classList.add('on');
+  if(name==='manage') renderTree();
+  if(name==='push') updatePushSum();
+}
+window.goTab = goTab;
+
+var upArea = $('upArea');
+var fileInp = $('fileInp');
+upArea.addEventListener('click', function(){ fileInp.click(); });
+upArea.addEventListener('dragover', function(e){ e.preventDefault(); upArea.classList.add('drag'); });
+upArea.addEventListener('dragleave', function(){ upArea.classList.remove('drag'); });
+upArea.addEventListener('drop', function(e){
+  e.preventDefault(); upArea.classList.remove('drag');
+  var f = e.dataTransfer.files[0];
+  if(f && /\.zip$/i.test(f.name)) setZip(f); else toast('❌ .zip file chahiye','err');
+});
+fileInp.addEventListener('change', function(e){ var f=e.target.files[0]; if(f) setZip(f); fileInp.value=''; });
+function setZip(f){
+  window._zip = f;
+  $('zipName').textContent = f.name;
+  $('fileCount').textContent = '...';
+  $('sbar').style.display = 'flex';
+  $('extOk').style.display = 'none';
+  files=[]; delFiles={}; delFolders={}; extracted=false;
+  updatePushBtn();
+}
+$('extBtn').addEventListener('click', async function(){
+  if(!window._zip){ toast('❌ ZIP select karo','err'); return; }
+  var btn=this; setBtnBusy(btn,true,'Extracting...');
+  try {
+    var zip = await JSZip.loadAsync(window._zip);
+    var list = [];
+    var entries = Object.keys(zip.files).map(function(k){ return zip.files[k]; }).filter(function(e){ return !e.dir; });
+    for (var i=0;i<entries.length;i++) {
+      var b = await entries[i].async('blob');
+      list.push({path: entries[i].name, blob:b});
+    }
+    files=list; extracted=true; delFiles={}; delFolders={};
+    $('fileCount').textContent = list.length;
+    $('extOk').style.display = 'block';
+    $('zipKpi').textContent = '1';
+    $('activeKpi').textContent = list.length;
+    $('deletedKpi').textContent = '0';
+    $('folderKpi').textContent = '0';
+    toast('✅ '+list.length+' files extracted!','ok');
+    renderTree();
+    updatePushBtn();
+  } catch(e) { toast('❌ '+e.message,'err'); }
+  finally { setBtnBusy(btn,false,'📂 Extract'); }
+});
+
+function buildTree(fileList){
+  var root = {};
+  fileList.forEach(function(f){
+    var parts = f.path.replace(/\\/g,'/').split('/');
+    var cur = root;
+    parts.forEach(function(p,i){
+      if(!cur[p]) cur[p] = {__isFile:false,__path:null,__kids:{}};
+      if(i===parts.length-1){ cur[p].__isFile=true; cur[p].__path=f.path; }
+      cur = cur[p].__kids;
+    });
+  });
+  return root;
+}
+function renderTree(){
+  var wrap = $('treeWrap');
+  if(!extracted || !files.length){ wrap.innerHTML='<div class="empty">Pehle ZIP extract karo</div>'; return; }
+  uid_counter = 0;
+  wrap.innerHTML = renderNode(buildTree(files),'');
+  attachEvents();
+  refreshInfo();
+}
+window.renderTree = renderTree;
+function renderNode(nodeObj,prefixSoFar){
+  var html='';
+  Object.keys(nodeObj).sort().forEach(function(name){
+    var node = nodeObj[name];
+    var fullPrefix = prefixSoFar + name + '/';
+    if(node.__isFile){
+      var fp=node.__path; var isDel=!!delFiles[fp];
+      var indent=(prefixSoFar.split('/').length-1)*14;
+      html += '<div class="frow'+(isDel?' del':'')+'" style="padding-left:'+indent+'px">';
+      html += '<span style="width:14px;flex-shrink:0"></span><span style="font-size:11px;flex-shrink:0">📄</span>';
+      html += '<span class="fname'+(isDel?' striked':'')+'">'+esc(name)+'</span>';
+      html += isDel
+        ? '<button class="delbtn file-rst" data-act="rst-file" data-path="'+esc(fp)+'">↩️ Restore</button>'
+        : '<button class="delbtn file-del" data-act="del-file" data-path="'+esc(fp)+'">🗑️ Delete</button>';
+      html += '</div>';
+    } else {
+      var indent2=(prefixSoFar.split('/').length-1)*14;
+      var isFolDel=!!delFolders[fullPrefix];
+      var uid='fd'+(++uid_counter);
+      html += '<div><div class="frow'+(isFolDel?' del':'')+'" style="padding-left:'+indent2+'px">';
+      html += '<span class="ftog" data-uid="'+uid+'">▶</span><span style="font-size:11px;flex-shrink:0">📁</span>';
+      html += '<span class="fname folder'+(isFolDel?' striked':'')+'">'+esc(name)+'</span>';
+      html += isFolDel
+        ? '<span style="font-size:10px;color:var(--warn);margin-right:4px">⬆️ shift</span><button class="delbtn folder-rst" data-act="rst-folder" data-prefix="'+esc(fullPrefix)+'">↩️ Restore</button>'
+        : '<button class="delbtn folder-del" data-act="del-folder" data-prefix="'+esc(fullPrefix)+'">📁 Remove Folder</button>';
+      html += '</div><div class="fchildren" id="'+uid+'" style="display:none">'+renderNode(node.__kids, fullPrefix)+'</div></div>';
+    }
+  });
+  return html;
+}
+function attachEvents(){
+  document.querySelectorAll('.ftog').forEach(function(el){
+    el.onclick=function(e){ e.stopPropagation(); var ch=$(this.dataset.uid); var open=ch.style.display==='none'; ch.style.display=open?'block':'none'; this.textContent=open?'▼':'▶'; };
+  });
+  document.querySelectorAll('[data-act]').forEach(function(btn){
+    btn.onclick=function(e){
+      e.stopPropagation();
+      var act=this.dataset.act;
+      if(act==='del-file') delFiles[this.dataset.path]=true;
+      else if(act==='rst-file') delete delFiles[this.dataset.path];
+      else if(act==='del-folder') delFolders[this.dataset.prefix]=true;
+      else if(act==='rst-folder') delete delFolders[this.dataset.prefix];
+      renderTree(); updatePushBtn();
+    };
+  });
+}
+function refreshInfo(){
+  var active=getActiveFiles().length; var df=Object.keys(delFiles).length; var dfol=Object.keys(delFolders).length;
+  $('fmInfo').textContent = active+' / '+files.length+' files push hongi';
+  $('activeKpi').textContent = active;
+  $('deletedKpi').textContent = df;
+  $('folderKpi').textContent = dfol;
+  if(df>0 || dfol>0){ $('banner').classList.add('show'); $('rstAllBtn').style.display='inline-flex'; $('bannerTxt').textContent=(df?df+' files deleted':'') + (df&&dfol?' | ':'') + (dfol?dfol+' folders stripped':''); }
+  else { $('banner').classList.remove('show'); $('rstAllBtn').style.display='none'; }
+}
+function restoreAll(){ delFiles={}; delFolders={}; renderTree(); updatePushBtn(); }
+function expandAll(){ document.querySelectorAll('.fchildren').forEach(function(el){el.style.display='block';}); document.querySelectorAll('.ftog').forEach(function(el){el.textContent='▼';}); }
+function collapseAll(){ document.querySelectorAll('.fchildren').forEach(function(el){el.style.display='none';}); document.querySelectorAll('.ftog').forEach(function(el){el.textContent='▶';}); }
+window.restoreAll=restoreAll; window.expandAll=expandAll; window.collapseAll=collapseAll;
+
+function getActiveFiles(){
+  var prefixes = Object.keys(delFolders).sort(function(a,b){ return b.length-a.length; });
+  var out=[];
+  files.forEach(function(f){
+    if(delFiles[f.path]) return;
+    var newPath=f.path;
+    prefixes.forEach(function(prefix){ if(newPath.indexOf(prefix)===0) newPath = newPath.substring(prefix.length); });
+    newPath = newPath.replace(/^\/+/, '');
+    if(!newPath) return;
+    out.push({path:newPath, blob:f.blob});
+  });
+  return out;
+}
+
+function ghHeaders(token){
+  return { 'Authorization':'Bearer '+token, 'Accept':'application/vnd.github+json', 'Content-Type':'application/json', 'X-GitHub-Api-Version':'2022-11-28' };
+}
+async function ghFetch(url, opts){
+  opts = opts || {};
+  var res = await fetch(url, opts);
+  if(res.status===204) return null;
+  var txt = await res.text();
+  var data = null;
+  try { data = txt ? JSON.parse(txt) : null; } catch(_) { data = txt; }
+  if(!res.ok){
+    var msg = data && data.message ? data.message : ('HTTP '+res.status);
+    throw new Error(msg);
+  }
+  return data;
+}
+async function repoInfo(owner,repo,token){ return ghFetch('https://api.github.com/repos/'+owner+'/'+repo,{headers:ghHeaders(token)}); }
+async function ensureBranch(owner,repo,branch,token){
+  try {
+    return await ghFetch('https://api.github.com/repos/'+owner+'/'+repo+'/git/ref/heads/'+encodeURIComponent(branch),{headers:ghHeaders(token)});
+  } catch(e){
+    var info = await repoInfo(owner,repo,token);
+    var defaultBranch = info.default_branch;
+    var baseRef = await ghFetch('https://api.github.com/repos/'+owner+'/'+repo+'/git/ref/heads/'+encodeURIComponent(defaultBranch),{headers:ghHeaders(token)});
+    await ghFetch('https://api.github.com/repos/'+owner+'/'+repo+'/git/refs',{
+      method:'POST', headers:ghHeaders(token), body:JSON.stringify({ref:'refs/heads/'+branch, sha:baseRef.object.sha})
+    });
+    return ghFetch('https://api.github.com/repos/'+owner+'/'+repo+'/git/ref/heads/'+encodeURIComponent(branch),{headers:ghHeaders(token)});
+  }
+}
+async function branchContext(owner,repo,branch,token){
+  var ref = await ensureBranch(owner,repo,branch,token);
+  var commitSha = ref.object.sha;
+  var commit = await ghFetch('https://api.github.com/repos/'+owner+'/'+repo+'/git/commits/'+commitSha,{headers:ghHeaders(token)});
+  return { ref:ref, parentCommitSha:commitSha, baseTreeSha:commit.tree.sha };
+}
+function blobToBase64(blob){
+  return new Promise(function(resolve,reject){
+    var reader = new FileReader();
+    reader.onload = function(){ resolve(String(reader.result).split(',')[1]); };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+async function mapLimit(items, limit, worker, onProgress){
+  var results = new Array(items.length);
+  var idx = 0, active = 0, done = 0;
+  return new Promise(function(resolve,reject){
+    function next(){
+      if(done===items.length) return resolve(results);
+      while(active<limit && idx<items.length){
+        (function(i){
+          active++;
+          Promise.resolve(worker(items[i],i)).then(function(r){ results[i]=r; })
+          .catch(function(err){ results[i]={error:err}; })
+          .finally(function(){ active--; done++; if(onProgress) onProgress(done, items.length, i, results[i]); next(); });
+        })(idx++);
+      }
+    }
+    if(!items.length) resolve([]); else next();
+  });
+}
+async function createBlobsParallel(owner,repo,token,active,limit,progressCb){
+  return mapLimit(active, limit, async function(file){
+    var content = await blobToBase64(file.blob);
+    var blob = await ghFetch('https://api.github.com/repos/'+owner+'/'+repo+'/git/blobs',{
+      method:'POST', headers:ghHeaders(token), body:JSON.stringify({content:content, encoding:'base64'})
+    });
+    return { path:file.path, sha:blob.sha, mode:'100644', type:'blob' };
+  }, progressCb);
+}
+async function turboCommitFiles(owner,repo,branch,msg,active,token,limit,ui){
+  var ctx = await branchContext(owner,repo,branch,token);
+  var okCount = 0;
+  var treeEntries = await createBlobsParallel(owner,repo,token,active,limit,function(done,total){
+    okCount = done;
+    if(ui){ ui(Math.round(done/total*82), '📦 '+owner+'/'+repo+' — blobs '+done+'/'+total); }
+  });
+  var failed = treeEntries.filter(function(x){ return x && x.error; });
+  var valid = treeEntries.filter(function(x){ return x && !x.error; });
+  if(!valid.length) throw new Error('Koi blob upload nahi hua');
+  if(ui) ui(88,'🌳 '+owner+'/'+repo+' — creating tree');
+  var tree = await ghFetch('https://api.github.com/repos/'+owner+'/'+repo+'/git/trees',{
+    method:'POST', headers:ghHeaders(token), body:JSON.stringify({base_tree:ctx.baseTreeSha, tree:valid})
+  });
+  if(ui) ui(94,'📝 '+owner+'/'+repo+' — creating commit');
+  var commit = await ghFetch('https://api.github.com/repos/'+owner+'/'+repo+'/git/commits',{
+    method:'POST', headers:ghHeaders(token), body:JSON.stringify({message:msg, tree:tree.sha, parents:[ctx.parentCommitSha]})
+  });
+  if(ui) ui(98,'🚀 '+owner+'/'+repo+' — updating branch');
+  await ghFetch('https://api.github.com/repos/'+owner+'/'+repo+'/git/refs/heads/'+encodeURIComponent(branch),{
+    method:'PATCH', headers:ghHeaders(token), body:JSON.stringify({sha:commit.sha, force:false})
+  });
+  if(ui) ui(100,'✅ '+owner+'/'+repo+' — done');
+  return {ok:valid.length, fail:failed.length};
+}
+async function turboDeletePaths(owner,repo,branch,msg,paths,token,ui){
+  var ctx = await branchContext(owner,repo,branch,token);
+  if(ui) ui(35,'🧱 base tree ready');
+  var treeEntries = paths.map(function(p){ return { path:p, mode:'100644', type:'blob', sha:null }; });
+  var tree = await ghFetch('https://api.github.com/repos/'+owner+'/'+repo+'/git/trees',{
+    method:'POST', headers:ghHeaders(token), body:JSON.stringify({base_tree:ctx.baseTreeSha, tree:treeEntries})
+  });
+  if(ui) ui(70,'📝 delete commit bana raha hai');
+  var commit = await ghFetch('https://api.github.com/repos/'+owner+'/'+repo+'/git/commits',{
+    method:'POST', headers:ghHeaders(token), body:JSON.stringify({message:msg, tree:tree.sha, parents:[ctx.parentCommitSha]})
+  });
+  if(ui) ui(90,'🚀 branch update ho raha hai');
+  await ghFetch('https://api.github.com/repos/'+owner+'/'+repo+'/git/refs/heads/'+encodeURIComponent(branch),{
+    method:'PATCH', headers:ghHeaders(token), body:JSON.stringify({sha:commit.sha, force:false})
+  });
+  if(ui) ui(100,'✅ delete complete');
+  return true;
+}
+
+function updatePushBtn(){
+  var token=$('ghToken').value.trim();
+  var active=getActiveFiles();
+  $('pushBtn').disabled = !(token && Object.keys(selRepos).length && extracted && active.length);
+  updatePushSum();
+}
+function updatePushSum(){
+  var active=getActiveFiles(); var df=Object.keys(delFiles).length; var dfol=Object.keys(delFolders).length; var sr=Object.keys(selRepos).length;
+  var s='<span style="color:var(--accent3)">✅ '+active.length+' files push hongi</span>';
+  if(df) s += ' <span style="color:var(--danger);margin-left:12px">🗑️ '+df+' skip</span>';
+  if(dfol) s += ' <span style="color:var(--warn);margin-left:12px">📁 '+dfol+' folders stripped</span>';
+  if(sr) s += ' <span style="color:var(--accent);margin-left:12px">📂 '+sr+' repos</span>';
+  s += ' <div class="mt2 note">Mode: parallel blobs + single commit per repo</div>';
+  $('pushSum').innerHTML = s;
+}
+$('ghToken').addEventListener('input', updatePushBtn);
+
+async function loadRepos(){
+  var token=$('ghToken').value.trim();
+  if(!token){ toast('❌ Token enter karo','err'); return; }
+  toast('📡 Repos load ho rahe hain...','inf');
+  try {
+    var all=[]; var page=1;
+    while(true){
+      var d = await ghFetch('https://api.github.com/user/repos?per_page=100&page='+page+'&sort=updated',{headers:ghHeaders(token)});
+      if(!d.length) break;
+      all = all.concat(d); page++;
+    }
+    repos = all.map(function(r){ return {name:r.name, full:r.full_name, priv:r.private}; });
+    clRepos = repos.slice();
+    $('repoCard').style.display='block';
+    renderRepos();
+    toast('✅ '+repos.length+' repos loaded','ok');
+    updatePushBtn();
+  } catch(e){ toast('❌ '+e.message,'err'); }
+}
+window.loadRepos = loadRepos;
+function renderRepos(){
+  var q = ($('repoSearch').value || '').toLowerCase();
+  var list = q ? repos.filter(function(r){ return r.name.toLowerCase().indexOf(q)>=0 || r.full.toLowerCase().indexOf(q)>=0; }) : repos;
+  var div = $('repoList');
+  if(!list.length){ div.innerHTML='<div class="empty">No repos found</div>'; return; }
+  div.innerHTML = list.map(function(r){
+    var chk = selRepos[r.full] ? 'checked' : '';
+    return '<div class="ritem" onclick="togRepo(\''+esc(r.full)+'\')">'
+      + '<input type="checkbox" '+chk+' onclick="event.stopPropagation();togRepo(\''+esc(r.full)+'\')">'
+      + '<span class="rname">📁 '+esc(r.name)+'<br><small style="color:var(--muted);font-size:10px">'+esc(r.full)+'</small></span>'
+      + '<span class="rbadge '+(r.priv?'priv':'pub')+'">'+(r.priv?'🔒 private':'🌍 public')+'</span>'
+      + '</div>';
+  }).join('');
+  $('selCount').textContent = Object.keys(selRepos).length+' selected';
+}
+window.togRepo = function(fn){ if(selRepos[fn]) delete selRepos[fn]; else selRepos[fn]=true; renderRepos(); updatePushBtn(); };
+function selAll(){ repos.forEach(function(r){ selRepos[r.full]=true; }); renderRepos(); updatePushBtn(); }
+function selNone(){ selRepos={}; renderRepos(); updatePushBtn(); }
+window.selAll=selAll; window.selNone=selNone;
+$('repoSearch').addEventListener('input', renderRepos);
+
+async function createRepo(){
+  var token=$('ghToken').value.trim();
+  var name=$('newRepoName').value.trim();
+  var desc=$('newRepoDesc').value.trim();
+  var isPrivate=$('newRepoVis').value==='private';
+  var autoInit=$('newRepoInit').checked;
+  if(!token){ toast('❌ Token enter karo','err'); return; }
+  if(!name){ toast('❌ Repo name chahiye','err'); return; }
+  try {
+    var body = { name:name, description:desc, private:isPrivate, auto_init:autoInit };
+    var data = await ghFetch('https://api.github.com/user/repos',{method:'POST', headers:ghHeaders(token), body:JSON.stringify(body)});
+    toast('✅ Repo create ho gaya: '+data.full_name,'ok',5000);
+    $('newRepoName').value=''; $('newRepoDesc').value='';
+    await loadRepos();
+    selRepos[data.full_name]=true;
+    renderRepos(); updatePushBtn();
+  } catch(e){ toast('❌ '+e.message,'err',5000); }
+}
+window.createRepo = createRepo;
+async function deleteSelectedRepo(){
+  var token=$('ghToken').value.trim();
+  var selected = Object.keys(selRepos);
+  if(!token){ toast('❌ Token enter karo','err'); return; }
+  if(selected.length!==1){ toast('❌ Delete ke liye exactly 1 repo select karo','err'); return; }
+  var full = selected[0];
+  var confirmText = prompt('Delete confirm karne ke liye repo ka full name likho: '+full);
+  if(confirmText !== full){ toast('❌ Confirmation mismatch, delete cancel','err'); return; }
+  try {
+    await ghFetch('https://api.github.com/repos/'+full,{method:'DELETE', headers:ghHeaders(token)});
+    toast('✅ Repo delete ho gaya: '+full,'ok',5000);
+    delete selRepos[full];
+    await loadRepos();
+    updatePushBtn();
+  } catch(e){ toast('❌ '+e.message,'err',5000); }
+}
+window.deleteSelectedRepo = deleteSelectedRepo;
+
+async function doPushTurbo(){
+  var token=$('ghToken').value.trim();
+  var branch=$('branchName').value.trim() || 'main';
+  var msg=$('commitMsg').value.trim() || 'Add files';
+  var active=getActiveFiles();
+  var rlist=Object.keys(selRepos);
+  var limit=Math.max(4, Math.min(64, parseInt($('pushConcurrency').value||'24',10)));
+  if(!token || !active.length || !rlist.length) return;
+  var btn=$('pushBtn'); setBtnBusy(btn,true,'Pushing...'); showProg('pushProg',true); $('pushFill').style.width='0%';
+  try {
+    for(var i=0;i<rlist.length;i++){
+      var rn=rlist[i]; var parts=rn.split('/'); var owner=parts[0], repo=parts[1];
+      $('pushLbl').textContent = rn+' — preparing';
+      var basePct = Math.round((i/rlist.length)*100);
+      var result = await turboCommitFiles(owner,repo,branch,msg,active,token,limit,function(p,label){
+        var totalPct = Math.min(100, Math.round((i/rlist.length)*100 + p/rlist.length));
+        $('pushFill').style.width = totalPct+'%';
+        $('pushLbl').textContent = label+' | repo '+(i+1)+'/'+rlist.length;
+      });
+      toast('✅ '+rn+': '+result.ok+' pushed'+(result.fail?(', '+result.fail+' failed'):'') ,'ok',4500);
+      $('pushFill').style.width = Math.round(((i+1)/rlist.length)*100)+'%';
+    }
+    $('pushLbl').textContent='✅ All selected repos done';
+    toast('🚀 Turbo push complete!','ok',5000);
+  } catch(e){ toast('❌ '+e.message,'err',6000); }
+  finally { setBtnBusy(btn,false,'⚡ Turbo Push to Selected Repos'); updatePushBtn(); }
+}
+window.doPushTurbo = doPushTurbo;
+
+function syncToken(){ $('clToken').value = $('ghToken').value; toast('✅ Token synced','ok'); }
+window.syncToken = syncToken;
+async function loadCleanupRepos(){
+  var token=$('clToken').value.trim();
+  if(!token){ toast('❌ Token enter karo','err'); return; }
+  if(repos.length>0){ clRepos = repos.slice(); renderClRepos(); $('clRepoCard').style.display='block'; toast('✅ '+clRepos.length+' repos loaded','ok'); return; }
+  try {
+    var all=[]; var page=1;
+    while(true){
+      var d = await ghFetch('https://api.github.com/user/repos?per_page=100&page='+page+'&sort=updated',{headers:ghHeaders(token)});
+      if(!d.length) break;
+      all=all.concat(d); page++;
+    }
+    clRepos = all.map(function(r){ return {name:r.name, full:r.full_name, priv:r.private}; });
+    $('clRepoCard').style.display='block';
+    renderClRepos();
+    toast('✅ '+clRepos.length+' repos loaded','ok');
+  } catch(e){ toast('❌ '+e.message,'err'); }
+}
+window.loadCleanupRepos = loadCleanupRepos;
+function renderClRepos(){
+  var q = ($('clRepoSearch').value || '').toLowerCase();
+  var list = q ? clRepos.filter(function(r){ return r.name.toLowerCase().indexOf(q)>=0 || r.full.toLowerCase().indexOf(q)>=0; }) : clRepos;
+  var div = $('clRepoList');
+  if(!list.length){ div.innerHTML='<div class="empty">No repos found</div>'; return; }
+  div.innerHTML = list.map(function(r){
+    var isSel = clSelRepo===r.full;
+    return '<div class="ritem" onclick="selectClRepo(\''+esc(r.full)+'\')" style="'+(isSel?'background:rgba(248,113,113,0.1);border-left:3px solid var(--danger)':'')+'">'
+      + '<span style="font-size:18px">'+(isSel?'🔴':'⚪')+'</span>'
+      + '<span class="rname">📁 '+esc(r.name)+'<br><small style="color:var(--muted);font-size:10px">'+esc(r.full)+'</small></span>'
+      + '<span class="rbadge '+(r.priv?'priv':'pub')+'">'+(r.priv?'🔒':'🌍')+'</span></div>';
+  }).join('');
+}
+window.selectClRepo = function(full){ clSelRepo=full; $('clSelName').textContent='✅ Selected: '+full; $('clBranchCard').style.display='block'; $('remoteCard').style.display='none'; renderClRepos(); };
+$('clRepoSearch').addEventListener('input', renderClRepos);
+
+async function listRepoFilesRecursive(owner,repo,branch,token,path){
+  path = path || '';
+  var url='https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+path+'?ref='+encodeURIComponent(branch);
+  var items = await ghFetch(url,{headers:ghHeaders(token)});
+  if(!Array.isArray(items)) items = [items];
+  var out=[];
+  for(var i=0;i<items.length;i++){
+    var item=items[i];
+    if(item.type==='file') out.push({path:item.path, sha:item.sha, type:'blob'});
+    else if(item.type==='dir') out = out.concat(await listRepoFilesRecursive(owner,repo,branch,token,item.path));
+  }
+  return out;
+}
+async function loadRemote(){
+  var token=$('clToken').value.trim();
+  var branch=$('clBranch').value.trim()||'main';
+  if(!token){ toast('❌ Token chahiye','err'); return; }
+  if(!clSelRepo){ toast('❌ Pehle repo select karo','err'); return; }
+  try {
+    var parts=clSelRepo.split('/');
+    toast('📡 Files load ho rahi hain...','inf');
+    remoteItems = await listRepoFilesRecursive(parts[0],parts[1],branch,token,'');
+    remSel={};
+    renderRemote();
+    $('remoteCard').style.display='block';
+    toast('✅ '+remoteItems.length+' files loaded','ok');
+  } catch(e){ toast('❌ '+e.message,'err',5000); }
+}
+window.loadRemote = loadRemote;
+function renderRemote(){
+  var wrap=$('remoteTree');
+  var blobs = remoteItems.filter(function(x){ return x.type==='blob'; });
+  if(!blobs.length){ wrap.innerHTML='<div class="empty">Koi file nahi</div>'; $('delBtn').disabled=true; return; }
+  wrap.innerHTML = blobs.map(function(item){
+    var chk = remSel[item.path] ? 'checked' : '';
+    return '<div class="rrow">'
+      + '<input type="checkbox" '+chk+' onchange="togRem(\''+esc(item.path)+'\',\''+esc(item.sha)+'\')">'
+      + '<span style="font-size:11px">📄</span>'
+      + '<span style="flex:1;font-size:12px;'+(remSel[item.path]?'text-decoration:line-through;color:var(--danger)':'')+'">'+esc(item.path)+'</span>'
+      + '</div>';
+  }).join('');
+  var cnt=Object.keys(remSel).length;
+  $('remInfo').textContent = cnt+' selected';
+  $('delBtn').disabled = !cnt;
+}
+window.togRem = function(path, sha){ if(remSel[path]) delete remSel[path]; else remSel[path]=sha; renderRemote(); };
+function checkAll(state){ remSel={}; if(state) remoteItems.filter(function(x){return x.type==='blob';}).forEach(function(x){ remSel[x.path]=x.sha; }); renderRemote(); }
+window.checkAll = checkAll;
+
+async function doDeleteTurbo(){
+  var token=$('clToken').value.trim();
+  var rn=clSelRepo; var branch=$('clBranch').value.trim()||'main'; var msg=$('delMsg').value.trim()||'Delete files';
+  var toDelete=Object.keys(remSel);
+  if(!toDelete.length) return;
+  if(!confirm(toDelete.length+' files ko single batch commit se delete kiya jayega from '+rn+'. Confirm?')) return;
+  var btn=$('delBtn'); setBtnBusy(btn,true,'Deleting...'); showProg('delProg',true); $('delFill').style.width='0%';
+  try {
+    var parts=rn.split('/');
+    await turboDeletePaths(parts[0],parts[1],branch,msg,toDelete,token,function(p,label){ $('delFill').style.width=p+'%'; $('delLbl').textContent=label; });
+    toast('✅ '+toDelete.length+' files batch delete ho gayi','ok',5000);
+    await loadRemote();
+  } catch(e){ toast('❌ '+e.message,'err',6000); }
+  finally { setBtnBusy(btn,false,'🗑️ Batch Delete Selected'); }
+}
+window.doDeleteTurbo = doDeleteTurbo;
+</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
